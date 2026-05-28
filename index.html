@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMS Delay Analyzer · Infozillion Teletech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="1" y="1" width="8" height="8" fill="currentColor" opacity="1"/>
+            <rect x="11" y="1" width="8" height="8" fill="currentColor" opacity="0.5"/>
+            <rect x="1" y="11" width="8" height="8" fill="currentColor" opacity="0.5"/>
+            <rect x="11" y="11" width="8" height="8" fill="currentColor" opacity="0.25"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">SMS Delay Analyzer</span>
+          <span class="brand-org">Infozillion Teletech BD · Service Assurance</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="header-tag">v2.0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+  <main class="site-main">
+
+    <!-- ── UPLOAD SCREEN ── -->
+    <section id="screen-upload" class="screen screen--active">
+      <div class="upload-hero">
+        <div class="upload-eyebrow">Elastic Stack Export</div>
+        <h1 class="upload-headline">Analyze SMS<br /><em>Response Delays</em></h1>
+        <p class="upload-subtext">Upload your CSV export from Kibana. The tool computes per-operator delay distribution and generates a shareable report card.</p>
+      </div>
+
+      <div class="upload-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".csv" hidden />
+        <div class="upload-zone__inner">
+          <div class="upload-zone__icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M16 4v16M10 10l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 22v2a4 4 0 004 4h16a4 4 0 004-4v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="upload-zone__label">Drop CSV file here</div>
+          <div class="upload-zone__hint">or</div>
+          <button class="btn btn--primary" id="browseBtn" type="button">Browse File</button>
+          <div class="upload-zone__formats">Accepts <code>.csv</code> — Kibana / Elastic discover export</div>
+        </div>
+      </div>
+
+      <div class="upload-requirements">
+        <div class="req-title">Required CSV columns</div>
+        <div class="req-grid">
+          <div class="req-item"><code>ansRequestTime</code><span>Request timestamp</span></div>
+          <div class="req-item"><code>ansResponseTime</code><span>Response timestamp</span></div>
+          <div class="req-item"><code>applicableSmsGateway</code><span>Operator name</span></div>
+          <div class="req-item req-item--opt"><code>@timestamp</code><span>Optional — for time range</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── LOADING SCREEN ── -->
+    <section id="screen-loading" class="screen">
+      <div class="loading-wrap">
+        <div class="loading-spinner">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="16" stroke="var(--border)" stroke-width="3"/>
+            <path d="M20 4a16 16 0 0116 16" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="loading-label" id="loadingLabel">Reading file…</div>
+        <div class="loading-bar"><div class="loading-bar__fill" id="loadingFill"></div></div>
+      </div>
+    </section>
+
+    <!-- ── RESULTS SCREEN ── -->
+    <section id="screen-results" class="screen">
+
+      <!-- Top bar -->
+      <div class="results-topbar">
+        <div class="results-topbar__left">
+          <button class="btn btn--ghost btn--sm" id="resetBtn" type="button">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7a5 5 0 105-5H4m0 0L2 4m2-2L2 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            New File
+          </button>
+          <div class="results-meta" id="resultsMeta"></div>
+        </div>
+        <div class="results-topbar__right">
+          <button class="btn btn--outline btn--sm" id="copyTableBtn" type="button">Copy Table</button>
+          <button class="btn btn--outline btn--sm" id="exportCsvBtn" type="button">Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Time range -->
+      <div class="time-range" id="timeRange"></div>
+
+      <!-- Pivot table -->
+      <div class="section-block">
+        <div class="section-block__header">
+          <span class="section-block__title">Delay Distribution</span>
+          <span class="section-block__sub">Count of messages per delay value (seconds) × operator</span>
+        </div>
+        <div class="table-scroll">
+          <table class="pivot-table" id="pivotTable">
+            <thead></thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Operator summary -->
+      <div class="section-block">
+        <div class="section-block__header">
+          <span class="section-block__title">Operator Summary</span>
+          <span class="section-block__sub">Total messages and delayed count per operator</span>
+        </div>
+        <div class="op-cards" id="opCards"></div>
+      </div>
+
+      <!-- ── REPORT CARD BUILDER ── -->
+      <div class="section-block report-builder">
+        <div class="section-block__header">
+          <span class="section-block__title">WhatsApp Report Card</span>
+          <span class="section-block__sub">Fill in details → Generate → Copy image → Paste in WhatsApp</span>
+        </div>
+
+        <div class="report-form">
+          <div class="form-row">
+            <div class="field">
+              <label class="field__label" for="fReportType">Report Type</label>
+              <input class="field__input" type="text" id="fReportType" value="Delay Report" placeholder="e.g. Delay Report" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="fReporter">Reporter Name</label>
+              <input class="field__input" type="text" id="fReporter" placeholder="e.g. Rizvi" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label class="field__label" for="fStatus">Status</label>
+              <select class="field__input field__select" id="fStatus">
+                <option value="Normal">Normal</option>
+                <option value="Issue">Issue</option>
+              </select>
+            </div>
+            <div class="field" id="fIssueGroup" style="display:none;">
+              <label class="field__label" for="fIssue">Issue Description</label>
+              <input class="field__input" type="text" id="fIssue" placeholder="Describe the issue…" />
+            </div>
+          </div>
+
+          <div class="form-row" id="timeOverrideRow">
+            <div class="field">
+              <label class="field__label" for="fFrom">
+                From
+                <span class="field__label-hint" id="fromHint">auto from CSV</span>
+              </label>
+              <input class="field__input" type="datetime-local" id="fFrom" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="fTo">
+                To
+                <span class="field__label-hint" id="toHint">auto from CSV</span>
+              </label>
+              <input class="field__input" type="datetime-local" id="fTo" />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn--primary" id="generateBtn" type="button">Generate Report Card</button>
+          </div>
+        </div>
+
+        <!-- Card preview -->
+        <div class="card-preview" id="cardPreview" style="display:none;">
+          <div class="card-preview__label">Preview</div>
+
+          <!-- THE WHITE CARD — this gets captured -->
+          <div class="report-card" id="reportCard">
+            <!-- filled by JS -->
+          </div>
+
+          <div class="card-actions">
+            <button class="btn btn--success" id="copyImgBtn" type="button">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 4V3a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1h-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Copy Image
+            </button>
+            <button class="btn btn--outline" id="downloadImgBtn" type="button">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v8M4.5 7.5l3 3 3-3M2 11.5v1a1 1 0 001 1h9a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Download PNG
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+  <footer class="site-footer">
+    <span>© 2026 Najmaz Sakib</span>
+    <span class="sep">·</span>
+    <span>Infozillion Teletech BD — Service Assurance</span>
+    <span class="sep">·</span>
+    <span>Delay = <code>ansResponseTime − ansRequestTime</code></span>
+  </footer>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+</body>
+</html>
