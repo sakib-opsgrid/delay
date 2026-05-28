@@ -244,7 +244,7 @@ function computeData(rows) {
     if (!req || !res) continue;
 
     const delaySec = (res.getTime() - req.getTime()) / 1000;
-    const delayInt = Math.floor(delaySec);
+    const delayInt = Math.round(delaySec);
 
     // Also use req/res for range if no @timestamp
     if (!tsMin || req < tsMin) tsMin = req;
